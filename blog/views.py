@@ -1,22 +1,23 @@
 from django.shortcuts import render, get_object_or_404
 from .models import Post
-from django.core.paginator import Paginator
+from django.views.generic.list import ListView
+from django.views.generic.detail import DetailView
 
 
-def post_list(request):
-    post_pub_list = Post.published.all()
-    paginator = Paginator(post_pub_list, 3)  # 3 posts in each page
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
-    return render(request, 'blog/post/list.html', {'posts': page_obj})
+class PostListView(ListView):
+    queryset = Post.published.all()
+    paginate_by = 3  # 3 posts in each page
+    template_name = 'blog/post/list.html'
 
 
-def post_detail(request, year, month, day, post):
-    post = get_object_or_404(
-        Post, slug=post,
-        status='published',
-        publish__year=year,
-        publish__month=month,
-        publish__day=day
-    )
-    return render(request, 'blog/post/detail.html', {'post': post})
+class PostDetailView(DetailView):
+    template_name = 'blog/post/detail.html'
+
+    def get_queryset(self):
+        queryset = Post.published.filter(
+            publish__year=self.kwargs['year'],
+            publish__month=self.kwargs['month'],
+            publish__day=self.kwargs['day'],
+            slug=self.kwargs['slug']
+        )
+        return queryset
