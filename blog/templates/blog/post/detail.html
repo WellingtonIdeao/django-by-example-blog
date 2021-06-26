@@ -2,12 +2,40 @@
 
 {% block title %}{{ post.title }}{% endblock title %}
 {% block content %}
+        <!-- post -->
        <h1>{{ post.title }}</h1>
         <p class="date">
            Published {{ post.publish }} by {{ post.author }}
         </p>
         {{ post.body|linebreaks }}
+        <!-- /post -->
         <p>
             <a href="{% url 'blog:post_share' post.id %}" target="_blank"> Share this post</a>
         </p>
+        {% with comments.count as total_comments %}
+            <h2>{{ total_comments }} comment{{ total_comments|pluralize }}</h2>
+        {% endwith %}
+        <!-- comments list -->
+        {% for comment in comments %}
+            <div class="comment">
+                <p class="info">
+                    Comment {{ forloop.counter }} by {{ comment.name }} {{ comment.created }}
+                </p>
+                {{ comment.body|linebreaks }}
+            </div>
+        {% empty %}
+            <p>There are no comments yet.</p>
+        {% endfor %} <!-- /comments list -->
+
+        <!-- comment_form -->
+        {% if new_comment %} <!-- new_comment will be false because views always redirect detail page -->
+            <h2>Your comment has been added.</h2>
+        {% else %}
+            <form method="post">
+                {% csrf_token %}
+                {{comment_form.as_p}}
+                <p><input type="submit" value="Add comment"></p>
+            </form>
+        {% endif %}<!-- /comment_form -->
+
 {% endblock content %}

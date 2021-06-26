@@ -1,8 +1,8 @@
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render, redirect, get_object_or_404
 from .models import Post
 from django.views.generic.list import ListView
 from django.views.generic.detail import DetailView
-from .forms import EmailPostForm
+from .forms import EmailPostForm, CommentPostForm
 from django.core.mail import send_mail
 
 
@@ -23,6 +23,37 @@ class PostDetailView(DetailView):
             slug=self.kwargs['slug']
         )
         return queryset
+
+
+def post_detail(request, year, month, day, slug):
+    post = get_object_or_404(
+        Post, slug=slug,
+        status='published',
+        publish__year=year,
+        publish__month=month,
+        publish__day=day)
+
+    # List of active comments for this post
+    comments = post.comments.filter(active=True)
+
+    new_comment = None # new_comment will be None because views always redirect
+    if request.method == 'POST':
+        # A comment was posted
+        comment_form = CommentPostForm(data=request.POST)
+        if comment_form.is_valid():
+            # Create Comment object but don't save to database yet
+            new_comment = comment_form.save(commit=False)
+            # Assign the current post to the comment
+            new_comment.post = post
+            # Save the comment to the database
+            new_comment.save()
+            return redirect(post)
+    else:
+        comment_form = CommentPostForm()
+    return render(request, 'blog/post/detail.html', {'post': post,
+                                                     'comments': comments,
+                                                     'new_comment': new_comment,
+                                                     'comment_form': comment_form})
 
 
 def post_share(request, post_id):
