@@ -4,12 +4,28 @@ from django.views.generic.list import ListView
 from django.views.generic.detail import DetailView
 from .forms import EmailPostForm, CommentPostForm
 from django.core.mail import send_mail
+from taggit.models import Tag
+from django.core.paginator import Paginator, EmptyPage
+from django.db.models import Count
 
 
 class PostListView(ListView):
     queryset = Post.published.all()
     paginate_by = 3  # 3 posts in each page
     template_name = 'blog/post/list.html'
+
+
+def post_list(request, tag_slug=None):
+    object_list = Post.published.all()
+    tag = None
+    if tag_slug:
+        tag = get_object_or_404(Tag, slug=tag_slug)
+        object_list = object_list.filter(tags__in=[tag, ])
+
+    paginator = Paginator(object_list, 3)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    return render(request, 'blog/post/list.html', {'page_obj': page_obj, 'tag': tag})
 
 
 class PostDetailView(DetailView):
@@ -50,10 +66,22 @@ def post_detail(request, year, month, day, slug):
             return redirect(post)
     else:
         comment_form = CommentPostForm()
+
+    # list of similar posts
+
+    # retrieve q.s. with list of tag ids from current post. flat = True - get single value for each id
+    post_tags_ids = post.tags.values_list('id', flat=True)
+
+    # retrieve all occurrence post (with post repeat) with tags_ids, excluding current post
+    similar_posts = Post.published.filter(tags__in=post_tags_ids).exclude(pk=post.id)
+
+    similar_posts = similar_posts.annotate(same_tags=Count('tags')).order_by('-same_tags', '-publish')[:4]
     return render(request, 'blog/post/detail.html', {'post': post,
                                                      'comments': comments,
                                                      'new_comment': new_comment,
-                                                     'comment_form': comment_form})
+                                                     'comment_form': comment_form,
+                                                     'similar_posts': similar_posts,
+                                                     })
 
 
 def post_share(request, post_id):
