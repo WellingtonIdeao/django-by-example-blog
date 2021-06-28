@@ -2,7 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from .models import Post
 from django.views.generic.list import ListView
 from django.views.generic.detail import DetailView
-from .forms import EmailPostForm, CommentPostForm
+from .forms import EmailPostForm, CommentPostForm, SearchForm
 from django.core.mail import send_mail
 from taggit.models import Tag
 from django.core.paginator import Paginator, EmptyPage
@@ -105,3 +105,17 @@ def post_share(request, post_id):
     else:
         form = EmailPostForm()
     return render(request, 'blog/post/share.html', {'form': form, 'post': post, 'sent': sent})
+
+
+def post_search(request):
+    form = SearchForm()
+    query = None
+    results = []
+
+    if 'query' in request.GET:
+        form = SearchForm(request.GET)
+        if form.is_valid():
+            query = form.cleaned_data['query']
+            results = Post.published.filter(body__search=query)
+
+    return render(request, 'blog/post/search.html', {'form': form, 'results': results, 'query': query})
